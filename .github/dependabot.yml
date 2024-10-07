@@ -24,14 +24,6 @@ updates:
     ignore:
       - dependency-name: "grpcio*"
       - dependency-name: "python"
-    groups:
-      major-updates:
-        update-types:
-         - "major"
-      minor-patch-updates:
-        update-types:
-         - "minor"
-         - "patch"
 
   - package-ecosystem: "npm"
     directories:
@@ -42,14 +34,6 @@ updates:
       timezone: "Australia/Sydney"
     labels:
       - "dependencies"
-    groups:
-      major-updates:
-        update-types:
-         - "major"
-      minor-patch-updates:
-        update-types:
-         - "minor"
-         - "patch"
   
   - package-ecosystem: "bundler"
     directory: "docs/"
@@ -59,14 +43,6 @@ updates:
       timezone: "Australia/Sydney"
     labels:
       - "dependencies"
-    groups:
-      major-updates:
-        update-types:
-         - "major"
-      minor-patch-updates:
-        update-types:
-         - "minor"
-         - "patch"
 
   - package-ecosystem: "gomod"
     directories:
@@ -81,14 +57,6 @@ updates:
       timezone: "Australia/Sydney"
     labels:
       - "dependencies"
-    groups:
-      major-updates:
-        update-types:
-         - "major"
-      minor-patch-updates:
-        update-types:
-         - "minor"
-         - "patch"
 
   - package-ecosystem: "terraform"
     directory: "deployment/terraform/"
@@ -98,14 +66,6 @@ updates:
       timezone: "Australia/Sydney"
     labels:
       - "dependencies"
-    groups:
-      major-updates:
-        update-types:
-         - "major"
-      minor-patch-updates:
-        update-types:
-         - "minor"
-         - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -115,11 +75,12 @@ updates:
       timezone: "Australia/Sydney"
     labels:
       - "dependencies"
-    groups:
-      major-updates:
-        update-types:
-         - "major"
-      minor-patch-updates:
-        update-types:
-         - "minor"
-         - "patch"
+
+  - package-ecosystem: "gitsubmodule"
+    directory: "osv/"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "Australia/Sydney"
+    labels:
+      - "dependencies"
