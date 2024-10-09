@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	cloud.google.com/go/datastore v1.19.0
-	cloud.google.com/go/pubsub v1.43.0
+	cloud.google.com/go/pubsub v1.44.0
 	cloud.google.com/go/storage v1.43.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/golang/glog v1.2.2
@@ -19,7 +19,7 @@ require (
 	cloud.google.com/go/auth v0.9.5 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
 	cloud.google.com/go/compute/metadata v0.5.2 // indirect
-	cloud.google.com/go/iam v1.2.0 // indirect
+	cloud.google.com/go/iam v1.2.1 // indirect
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect
