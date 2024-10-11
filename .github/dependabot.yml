@@ -77,7 +77,10 @@ updates:
       - "dependencies"
 
   - package-ecosystem: "gitsubmodule"
-    directory: "osv/"
+    directories:
+      - "docker/worker/"
+      - "gcp/api/"
+      - "osv"
     schedule:
       interval: "daily"
       time: "06:00"
