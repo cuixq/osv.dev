@@ -80,7 +80,7 @@ updates:
     directories:
       - "docker/worker/"
       - "gcp/api/"
-      - "osv"
+      - "osv/"
     schedule:
       interval: "daily"
       time: "06:00"
