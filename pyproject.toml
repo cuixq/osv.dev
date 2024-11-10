@@ -21,7 +21,7 @@ attrs = "^23.2"
 jsonschema = "^4.0"
 grpcio = "^1.0"
 # TODO: Can this be higher
-packaging = "<22.0"
+packaging = "<25.0"
 requests = "^2.32"
 
 [tool.poetry.dev-dependencies]
