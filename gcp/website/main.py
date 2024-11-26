@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""App Engine entrypoint."""
+"""Website entrypoint."""
 
 import logging
 
@@ -41,7 +41,7 @@ def ndb_wsgi_middleware(wsgi_app):
 
 def create_app():
   """Create flask app."""
-  if utils.is_prod():
+  if utils.is_cloud_run():
     logging_client = google.cloud.logging.Client()
     logging_client.setup_logging()
 

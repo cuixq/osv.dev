@@ -68,7 +68,7 @@ class VulnerabilityNotImported(VulnerabilityNotFound):
   """Plumb the vulnerability ID with import findings to the error handler."""
 
 
-if utils.is_prod():
+if utils.is_cloud_run():
   redis_host = os.environ.get('REDISHOST', 'localhost')
   redis_port = int(os.environ.get('REDISPORT', 6379))
   limiter = rate_limiter.RateLimiter(
@@ -76,11 +76,7 @@ if utils.is_prod():
 
   @blueprint.before_request
   def check_rate_limit():
-    # TODO(michaelkedar): Cloud Run/App Engine have different ways to check this
-    # remove the App Engine header check when moving away from App Engine
-    ip_addr = request.headers.get('X-Appengine-User-Ip')
-    if ip_addr is None:
-      ip_addr = request.headers.get('X-Forwarded-For', 'unknown').split(',')[0]
+    ip_addr = request.headers.get('X-Forwarded-For', 'unknown').split(',')[0]
     if not limiter.check_request(ip_addr):
       abort(429)
 
@@ -254,10 +250,7 @@ def vulnerability(vuln_id):
   """Vulnerability page."""
   vuln = osv_get_by_id(vuln_id)
 
-  if utils.is_prod():
-    api_url = 'api.osv.dev'
-  else:
-    api_url = 'api.test.osv.dev'
+  api_url = utils.api_url()
 
   return render_template(
       'vulnerability.html', vulnerability=vuln, api_url=api_url)
@@ -291,10 +284,7 @@ def vulnerability_json_redirector(potential_vuln_id):
   # This calls abort() on failed retrievals.
   bug = osv_get_by_id(potential_vuln_id)
 
-  if utils.is_prod():
-    api_url = 'api.osv.dev'
-  else:
-    api_url = 'api.test.osv.dev'
+  api_url = utils.api_url()
   return redirect(f'https://{api_url}/v1/vulns/{bug["id"]}')
 
 

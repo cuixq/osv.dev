@@ -15,15 +15,35 @@
 
 import os
 from datetime import datetime, UTC
+from functools import cache
+
+import google.auth
+from google.auth.exceptions import DefaultCredentialsError
 
 
-def is_prod():
-  # TODO(michaelkedar): Cloud Run/App Engine have different ways to check this
-  # remove the App Engine header check when moving away from App Engine.
-  # This function actually checks if it's running on gcp (on prod OR staging)
-  # and it's only used for Redis cache (which has its own env vars) and logging.
-  # Consider removing this altogether.
-  return 'GAE_ENV' in os.environ or 'K_SERVICE' in os.environ
+@cache  # google.auth.default() can be a bit expensive.
+def api_url() -> str:
+  """
+  Returns the URL of the OSV API for the current GCP project.
+
+  Falls back to 'api.test.osv.dev' if URL cannot be determined.
+  """
+  try:
+    _, project = google.auth.default()
+  except DefaultCredentialsError:
+    project = '<unknown>'
+
+  # TODO(michaelkedar): Is there a way to avoid hard-coding this?
+  if project == 'oss-vdb':
+    return 'api.osv.dev'
+
+  return 'api.test.osv.dev'
+
+
+def is_cloud_run() -> bool:
+  """Check if we are running in Cloud Run."""
+  # https://cloud.google.com/run/docs/container-contract#env-vars
+  return 'K_SERVICE' in os.environ
 
 
 def relative_time(value: datetime | str) -> str:
