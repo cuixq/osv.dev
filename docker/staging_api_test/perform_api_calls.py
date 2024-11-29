@@ -30,7 +30,7 @@ from typing import Callable
 import osv
 import osv.logs
 
-BASE_URL = 'https://api.test.osv.dev/v1'
+BASE_URL = 'http://localhost:8080/v1'
 GCP_PROJECT = 'oss-vdb-test'
 BUG_DIR = './all_bugs'
 

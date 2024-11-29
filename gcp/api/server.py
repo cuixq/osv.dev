@@ -1388,6 +1388,7 @@ def _is_affected(ecosystem: str, version: str,
 
   return False
 
+USE_MEMRAY = True
 
 def main():
   """Entrypoint."""
@@ -1417,7 +1418,18 @@ def main():
   if not port:
     port = int(os.environ.get('PORT', '8000'))
 
-  serve(port, args.local)
+  if USE_MEMRAY:
+    import memray
+    
+    dir_name = mkdtemp(prefix='memory-profiler-')
+    full_path = os.path.join(dir_name, 'memory-profile.bin')
+
+    with memray.Tracker(full_path):
+      logger.info('Starting with memory profiler; output in -> %s', full_path)
+      serve(port, args.local)
+  
+  else:
+    serve(port, args.local)
 
 
 if __name__ == '__main__':
