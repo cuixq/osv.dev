@@ -20,7 +20,8 @@ import time
 
 _ESP_PORT = 8080
 _BACKEND_PORT = 8000
-_GCP_PROJECT = 'oss-vdb'
+_GCP_PROJECT = 'oss-vdb-test'
+_USE_MEMRAY = False
 
 
 class ServerInstance:
@@ -45,17 +46,18 @@ class ServerInstance:
       self.backend.kill()
 
 
-def start_backend(port, log_path):
+def start_backend(port, log_path, memray):
   """Start backend server."""
   log_handle = open(log_path, 'w')
   env = os.environ.copy()
   env['GOOGLE_CLOUD_PROJECT'] = _GCP_PROJECT
 
+  commands = [sys.executable, 'server.py', f'--port={port}']
+  if memray:
+    commands.append('--memray')
+
   backend_proc = subprocess.Popen(
-      [sys.executable, 'server.py', f'--port={port}'],
-      env=env,
-      stdout=log_handle,
-      stderr=subprocess.STDOUT)
+      commands, env=env, stdout=log_handle, stderr=subprocess.STDOUT)
 
   return backend_proc
 
@@ -164,7 +166,7 @@ def start(credential_path,
   esp = None
   try:
     if not no_backend:
-      backend = start_backend(_BACKEND_PORT, 'backend.log')
+      backend = start_backend(_BACKEND_PORT, 'backend.log', _USE_MEMRAY)
     esp = start_esp(port, backend_port, credential_path, 'esp.log')
   except Exception:
     if esp:

@@ -1411,13 +1411,28 @@ def main():
       action='store_true',
       default=False,
       help='If set reflection is enabled to allow debugging with grpcurl.')
+  parser.add_argument(
+      '--memray',
+      action='store_true',
+      default=False,
+      help='If set, memray is enabled to profile memory usage.')
 
   args = parser.parse_args()
   port = args.port
   if not port:
     port = int(os.environ.get('PORT', '8000'))
 
-  serve(port, args.local)
+  if args.memray:
+    import memray
+
+    file_path = 'memray-' + datetime.now().strftime('%Y%m%d%H%M%S') + '.bin'
+
+    with memray.Tracker(file_path):
+      logging.info('Starting with memory profiler; output in -> %s', file_path)
+      serve(port, args.local)
+
+  else:
+    serve(port, args.local)
 
 
 if __name__ == '__main__':
