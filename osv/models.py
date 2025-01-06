@@ -25,6 +25,7 @@ from typing import Self
 from google.cloud import ndb
 from google.protobuf import json_format
 from google.protobuf import timestamp_pb2
+from osv import importfinding_pb2
 
 # pylint: disable=relative-beyond-top-level
 from . import bug
@@ -405,6 +406,9 @@ class Bug(ndb.Model):
     # also add the base name
     ecosystems_set.update({ecosystems.normalize(x) for x in ecosystems_set})
 
+    # Expand the set to include all ecosystem variants.
+    ecosystems_set = ecosystems.add_matching_ecosystems(ecosystems_set)
+
     self.ecosystem = list(ecosystems_set)
     self.ecosystem.sort()
 
@@ -503,7 +507,7 @@ class Bug(ndb.Model):
     if not self.key:  # pylint: disable=access-member-before-definition
       source_repo = get_source_repository(self.source)
       if not source_repo:
-        raise ValueError(f'Invalid source {self.source}')
+        raise ValueError(f'{self.db_id} has invalid source {self.source}')
 
       if source_repo.db_prefix and not any(
           self.db_id.startswith(prefix) for prefix in source_repo.db_prefix):
@@ -926,6 +930,16 @@ class ImportFinding(ndb.Model):
     """Pre-put hook for setting key."""
     if not self.key:  # pylint: disable=access-member-before-definition
       self.key = ndb.Key(ImportFinding, self.bug_id)
+
+  def to_proto(self):
+    """Converts to ImportFinding proto."""
+    return importfinding_pb2.ImportFinding(
+        bug_id=self.bug_id,
+        source=self.source,
+        findings=self.findings,  # type: ignore
+        first_seen=self.first_seen.timestamp_pb(),  #type: ignore
+        last_attempt=self.last_attempt.timestamp_pb(),  #type: ignore
+    )
 
 
 def get_source_repository(source_name: str) -> SourceRepository:
