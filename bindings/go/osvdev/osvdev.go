@@ -3,7 +3,6 @@ package osvdev
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,8 +11,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ossf/osv-schema/bindings/go/osvschema"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -30,15 +29,15 @@ const (
 	DefaultBaseURL = "https://api.osv.dev"
 )
 
-type OSVClient struct {
+type OsvDevClient struct {
 	HTTPClient  *http.Client
 	Config      ClientConfig
 	BaseHostURL string
 }
 
 // DefaultClient creates a new OSVClient with default settings
-func DefaultClient() *OSVClient {
-	return &OSVClient{
+func DefaultClient() *OsvDevClient {
+	return &OsvDevClient{
 		HTTPClient:  http.DefaultClient,
 		Config:      DefaultConfig(),
 		BaseHostURL: DefaultBaseURL,
@@ -46,7 +45,7 @@ func DefaultClient() *OSVClient {
 }
 
 // GetVulnByID is an interface to this endpoint: https://google.github.io/osv.dev/get-v1-vulns/
-func (c *OSVClient) GetVulnByID(ctx context.Context, id string) (*osvschema.Vulnerability, error) {
+func (c *OsvDevClient) GetVulnByID(ctx context.Context, id string) (*Vulnerability, error) {
 	resp, err := c.makeRetryRequest(func(client *http.Client) (*http.Response, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseHostURL+GetEndpoint+"/"+id, nil)
 		if err != nil {
@@ -65,10 +64,13 @@ func (c *OSVClient) GetVulnByID(ctx context.Context, id string) (*osvschema.Vuln
 
 	defer resp.Body.Close()
 
-	var vuln osvschema.Vulnerability
-	decoder := json.NewDecoder(resp.Body)
-	err = decoder.Decode(&vuln)
+	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
+		return nil, err
+	}
+
+	var vuln Vulnerability
+	if err = protojson.Unmarshal(respBytes, &vuln); err != nil {
 		return nil, err
 	}
 
@@ -80,15 +82,15 @@ func (c *OSVClient) GetVulnByID(ctx context.Context, id string) (*osvschema.Vuln
 // been retrieved are returned.
 //
 // See if next_page_token field in the response is fully filled out to determine if there are extra pages remaining
-func (c *OSVClient) QueryBatch(ctx context.Context, queries []*Query) (*BatchedResponse, error) {
+func (c *OsvDevClient) QueryBatch(ctx context.Context, queries []*Query) (*BatchVulnerabilityList, error) {
 	// API has a limit of how many queries are in one batch
 	queryChunks := chunkBy(queries, MaxQueriesPerQueryBatchRequest)
-	totalOsvRespBatched := make([][]MinimalResponse, len(queryChunks))
+	totalOsvRespBatched := make([][]*VulnerabilityList, len(queryChunks))
 
 	g, errGrpCtx := errgroup.WithContext(ctx)
 	g.SetLimit(c.Config.MaxConcurrentBatchRequests)
 	for batchIndex, queries := range queryChunks {
-		requestBytes, err := json.Marshal(BatchedQuery{Queries: queries})
+		requestBytes, err := protojson.Marshal(&BatchQuery{Queries: queries})
 		if err != nil {
 			return nil, err
 		}
@@ -120,10 +122,13 @@ func (c *OSVClient) QueryBatch(ctx context.Context, queries []*Query) (*BatchedR
 			}
 			defer resp.Body.Close()
 
-			var osvResp BatchedResponse
-			decoder := json.NewDecoder(resp.Body)
-			err = decoder.Decode(&osvResp)
+			respBytes, err := io.ReadAll(resp.Body)
 			if err != nil {
+				return err
+			}
+
+			var osvResp BatchVulnerabilityList
+			if err = protojson.Unmarshal(respBytes, &osvResp); err != nil {
 				return err
 			}
 
@@ -138,8 +143,8 @@ func (c *OSVClient) QueryBatch(ctx context.Context, queries []*Query) (*BatchedR
 		return nil, err
 	}
 
-	totalOsvResp := BatchedResponse{
-		Results: make([]MinimalResponse, 0, len(queries)),
+	totalOsvResp := BatchVulnerabilityList{
+		Results: make([]*VulnerabilityList, 0, len(queries)),
 	}
 	for _, results := range totalOsvRespBatched {
 		totalOsvResp.Results = append(totalOsvResp.Results, results...)
@@ -153,8 +158,8 @@ func (c *OSVClient) QueryBatch(ctx context.Context, queries []*Query) (*BatchedR
 // been retrieved are returned.
 //
 // See if next_page_token field in the response is fully filled out to determine if there are extra pages remaining
-func (c *OSVClient) Query(ctx context.Context, query *Query) (*Response, error) {
-	requestBytes, err := json.Marshal(query)
+func (c *OsvDevClient) Query(ctx context.Context, query *Query) (*VulnerabilityList, error) {
+	requestBytes, err := protojson.Marshal(query)
 	if err != nil {
 		return nil, err
 	}
@@ -179,18 +184,21 @@ func (c *OSVClient) Query(ctx context.Context, query *Query) (*Response, error) 
 	}
 	defer resp.Body.Close()
 
-	var osvResp Response
-	decoder := json.NewDecoder(resp.Body)
-	err = decoder.Decode(&osvResp)
+	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
+		return nil, err
+	}
+
+	var osvResp VulnerabilityList
+	if err = protojson.Unmarshal(respBytes, &osvResp); err != nil {
 		return nil, err
 	}
 
 	return &osvResp, nil
 }
 
-func (c *OSVClient) ExperimentalDetermineVersion(ctx context.Context, query *DetermineVersionsRequest) (*DetermineVersionResponse, error) {
-	requestBytes, err := json.Marshal(query)
+func (c *OsvDevClient) ExperimentalDetermineVersion(ctx context.Context, query *DetermineVersionParameters) (*VersionMatchList, error) {
+	requestBytes, err := protojson.Marshal(query)
 	if err != nil {
 		return nil, err
 	}
@@ -216,17 +224,20 @@ func (c *OSVClient) ExperimentalDetermineVersion(ctx context.Context, query *Det
 	}
 	defer resp.Body.Close()
 
-	var result DetermineVersionResponse
-	decoder := json.NewDecoder(resp.Body)
-	if err := decoder.Decode(&result); err != nil {
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
 
+	var result VersionMatchList
+	if err = protojson.Unmarshal(respBytes, &result); err != nil {
+		return nil, err
+	}
 	return &result, nil
 }
 
 // makeRetryRequest will return an error on both network errors, and if the response is not 200
-func (c *OSVClient) makeRetryRequest(action func(client *http.Client) (*http.Response, error)) (*http.Response, error) {
+func (c *OsvDevClient) makeRetryRequest(action func(client *http.Client) (*http.Response, error)) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 	var lastErr error
