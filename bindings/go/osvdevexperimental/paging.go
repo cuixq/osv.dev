@@ -3,13 +3,14 @@ package osvdevexperimental
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"osv.dev/bindings/go/osvdev"
 )
 
 // QueryPaging performs a single query with the given OSVClient, and handles
 // paging logic to return all results.
-func QueryPaging(ctx context.Context, c *osvdev.OSVClient, query *osvdev.Query) (*osvdev.Response, error) {
+func QueryPaging(ctx context.Context, c *osvdev.OsvDevClient, query *osvdev.Query) (*osvdev.VulnerabilityList, error) {
 	queryResponse, err := c.Query(ctx, query)
 
 	if err != nil {
@@ -21,6 +22,7 @@ func QueryPaging(ctx context.Context, c *osvdev.OSVClient, query *osvdev.Query) 
 	if queryResponse.NextPageToken == "" {
 		return queryResponse, nil
 	}
+	fmt.Println(queryResponse.NextPageToken)
 
 	if ctx.Err() != nil {
 		return queryResponse, &DuringPagingError{
@@ -45,7 +47,7 @@ func QueryPaging(ctx context.Context, c *osvdev.OSVClient, query *osvdev.Query) 
 			}
 		}
 
-		return queryResponse, dpe
+		return queryResponse, errToReturn
 	}
 
 	queryResponse.Vulns = append(queryResponse.Vulns, nextPageResponse.Vulns...)
@@ -56,7 +58,7 @@ func QueryPaging(ctx context.Context, c *osvdev.OSVClient, query *osvdev.Query) 
 
 // BatchQueryPaging performs a batch query with the given OSVClient, and handles
 // paging logic for each query to return all results.
-func BatchQueryPaging(ctx context.Context, c *osvdev.OSVClient, queries []*osvdev.Query) (*osvdev.BatchedResponse, error) {
+func BatchQueryPaging(ctx context.Context, c *osvdev.OsvDevClient, queries []*osvdev.Query) (*osvdev.BatchVulnerabilityList, error) {
 	batchResp, err := c.QueryBatch(ctx, queries)
 
 	if err != nil {
@@ -70,6 +72,8 @@ func BatchQueryPaging(ctx context.Context, c *osvdev.OSVClient, queries []*osvde
 		if res.NextPageToken == "" {
 			continue
 		}
+
+		fmt.Println(res.NextPageToken)
 
 		query := *queries[i]
 		query.PageToken = res.NextPageToken
