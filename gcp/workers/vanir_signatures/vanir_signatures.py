@@ -298,43 +298,43 @@ def main():
               max_workers=args.max_workers)
 
       future_to_batch = {}
-    current_batch = []
+      current_batch = []
 
-    logging.info('Streaming vulnerabilities for processing.')
-    for key in query.iter(keys_only=True):
-      current_batch.append(key.id())
-      if len(current_batch) >= args.batch_size:
+      logging.info('Streaming vulnerabilities for processing.')
+      for key in query.iter(keys_only=True):
+        current_batch.append(key.id())
+        if len(current_batch) >= args.batch_size:
+          f = executor.submit(process_with_context, current_batch)
+          future_to_batch[f] = current_batch
+          current_batch = []
+
+      # Also add IDs from the retry list
+      if retry_list_data and retry_list_data.value:
+        retry_ids = list(set(retry_list_data.value))
+        logging.info('Adding %d IDs from retry list.', len(retry_ids))
+        for i in range(0, len(retry_ids), args.batch_size):
+          batch = retry_ids[i:i + args.batch_size]
+          f = executor.submit(process_with_context, batch)
+          future_to_batch[f] = batch
+
+      if current_batch:
         f = executor.submit(process_with_context, current_batch)
         future_to_batch[f] = current_batch
-        current_batch = []
 
-    # Also add IDs from the retry list
-    if retry_list_data and retry_list_data.value:
-      retry_ids = list(set(retry_list_data.value))
-      logging.info('Adding %d IDs from retry list.', len(retry_ids))
-      for i in range(0, len(retry_ids), args.batch_size):
-        batch = retry_ids[i:i + args.batch_size]
-        f = executor.submit(process_with_context, batch)
-        future_to_batch[f] = batch
-
-    if current_batch:
-      f = executor.submit(process_with_context, current_batch)
-      future_to_batch[f] = current_batch
-
-    if not future_to_batch:
-      logging.info('No modified vulnerabilities found.')
-    else:
-      logging.info('Processing %d batches of vulnerabilities.',
-                   len(future_to_batch))
-      for future in futures.as_completed(future_to_batch):
-        try:
-          generated, failed_ids = future.result()
-          total_generated_count += generated
-          all_failed_ids.extend(failed_ids)
-          total_processed_count += len(future_to_batch[future])
-        except Exception as e:
-          logging.exception('Failed to process a batch of vulnerabilities: %s',
-                            e)
+      if not future_to_batch:
+        logging.info('No modified vulnerabilities found.')
+      else:
+        logging.info('Processing %d batches of vulnerabilities.',
+                     len(future_to_batch))
+        for future in futures.as_completed(future_to_batch):
+          try:
+            generated, failed_ids = future.result()
+            total_generated_count += generated
+            all_failed_ids.extend(failed_ids)
+            total_processed_count += len(future_to_batch[future])
+          except Exception as e:
+            logging.exception(
+                'Failed to process a batch of vulnerabilities: %s', e)
 
   logging.info('Processed %d vulnerabilities, generated %d new signatures.',
                total_processed_count, total_generated_count)
