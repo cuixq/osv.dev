@@ -40,8 +40,7 @@ JOB_DATA_RETRY_LIST = 'vanir_signatures_retry_list'
 
 def _generate_vanir_signatures_batch(
     vulnerability_pbs: list[vulnerability_pb2.Vulnerability],
-    git_working_dir: Optional[str] = None
-) -> dict[str, list[vulnerability_pb2.Vulnerability]]:
+    git_working_dir: str) -> dict[str, list[vulnerability_pb2.Vulnerability]]:
   """Generates Vanir signatures for a batch of vulnerability_pbs."""
   if not vulnerability_pbs:
     return {}
@@ -109,11 +108,10 @@ def has_vanir_signatures(
   return False
 
 
-def process_batch(
-    vuln_ids: list[str],
-    dry_run: bool = False,
-    max_workers: int = 10,
-    git_working_dir: Optional[str] = None) -> tuple[int, list[str]]:
+def process_batch(vuln_ids: list[str],
+                  git_working_dir: str,
+                  dry_run: bool = False,
+                  max_workers: int = 10) -> tuple[int, list[str]]:
   """Process a batch of vulnerabilities."""
   if not vuln_ids:
     return 0, []
@@ -295,9 +293,9 @@ def main():
         with ndb.Client().context():
           return process_batch(
               batch,
-              args.dry_run,
-              args.max_workers,
-              git_working_dir=shared_temp_dir)
+              shared_temp_dir,
+              dry_run=args.dry_run,
+              max_workers=args.max_workers)
 
       future_to_batch = {}
     current_batch = []

@@ -75,7 +75,8 @@ class VanirSignaturesTest(unittest.TestCase):
     mock_get_gcs.return_value = (vuln, '123')
 
     with self.assertLogs(level='DEBUG') as cm:
-      result, failed_ids = vanir_signatures.process_batch([vuln_id])
+      result, failed_ids = vanir_signatures.process_batch(
+          [vuln_id], 'fake_git_working_dir')
       self.assertEqual(result, 0)
       self.assertEqual(failed_ids, [])
       self.assertTrue(any('no GIT affected ranges' in log for log in cm.output))
@@ -95,7 +96,8 @@ class VanirSignaturesTest(unittest.TestCase):
     mock_get_gcs.return_value = (vuln, '123')
 
     with self.assertLogs(level='DEBUG') as cm:
-      result, failed_ids = vanir_signatures.process_batch([vuln_id])
+      result, failed_ids = vanir_signatures.process_batch(
+          [vuln_id], 'fake_git_working_dir')
       self.assertEqual(result, 0)
       self.assertEqual(failed_ids, [])
       self.assertTrue(
@@ -114,7 +116,8 @@ class VanirSignaturesTest(unittest.TestCase):
     mock_get_gcs.return_value = (vuln, '123')
 
     with self.assertLogs(level='DEBUG') as cm:
-      result, failed_ids = vanir_signatures.process_batch([vuln_id])
+      result, failed_ids = vanir_signatures.process_batch(
+          [vuln_id], 'fake_git_working_dir')
       self.assertEqual(result, 0)
       self.assertEqual(failed_ids, [])
       self.assertTrue(any('it is withdrawn' in log for log in cm.output))
@@ -132,7 +135,8 @@ class VanirSignaturesTest(unittest.TestCase):
     mock_get_gcs.return_value = (vuln, '123')
 
     with self.assertLogs(level='DEBUG') as cm:
-      result, failed_ids = vanir_signatures.process_batch([vuln_id])
+      result, failed_ids = vanir_signatures.process_batch(
+          [vuln_id], 'fake_git_working_dir')
       self.assertEqual(result, 0)
       self.assertEqual(failed_ids, [])
       self.assertTrue(
@@ -165,7 +169,8 @@ class VanirSignaturesTest(unittest.TestCase):
     vuln_entity = osv.Vulnerability(id=vuln_id)
     vuln_entity.put()
 
-    result, failed_ids = vanir_signatures.process_batch([vuln_id])
+    result, failed_ids = vanir_signatures.process_batch([vuln_id],
+                                                        'fake_git_working_dir')
 
     self.assertEqual(result, 1)
     self.assertEqual(failed_ids, [])
@@ -210,7 +215,8 @@ class VanirSignaturesTest(unittest.TestCase):
     vuln_entity.put()
     initial_modified = vuln_entity.modified
 
-    result, failed_ids = vanir_signatures.process_batch([vuln_id])
+    result, failed_ids = vanir_signatures.process_batch([vuln_id],
+                                                        'fake_git_working_dir')
 
     # Result should be 0 because upload failed
     self.assertEqual(result, 0)
