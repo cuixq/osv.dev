@@ -18,6 +18,7 @@ import argparse
 import datetime
 import json
 import logging
+import tempfile
 from concurrent import futures
 
 from google.cloud import ndb
@@ -30,6 +31,7 @@ import osv.gcs
 from osv import vulnerability_pb2
 
 from vanir import vulnerability_manager
+from vanir.code_extractors import code_extractor_base
 
 JOB_NAME = 'vanir_signatures'
 JOB_DATA_LAST_RUN = 'vanir_signatures_last_run'
@@ -37,7 +39,8 @@ JOB_DATA_RETRY_LIST = 'vanir_signatures_retry_list'
 
 
 def _generate_vanir_signatures_batch(
-    vulnerability_pbs: list[vulnerability_pb2.Vulnerability]
+    vulnerability_pbs: list[vulnerability_pb2.Vulnerability],
+    git_working_dir: Optional[str] = None
 ) -> dict[str, list[vulnerability_pb2.Vulnerability]]:
   """Generates Vanir signatures for a batch of vulnerability_pbs."""
   if not vulnerability_pbs:
@@ -53,7 +56,10 @@ def _generate_vanir_signatures_batch(
     ]
     vuln_manager = vulnerability_manager.generate_from_json_string(
         content=json.dumps(vuln_dicts))
-    vuln_manager.generate_signatures()
+
+    extractor_config = code_extractor_base.ExtractorConfig(
+        git_working_dir=git_working_dir)
+    vuln_manager.generate_signatures(extractor_config=extractor_config)
 
     if not vuln_manager.vulnerabilities:
       logging.warning('Vanir signature generation resulted in no '
@@ -103,9 +109,11 @@ def has_vanir_signatures(
   return False
 
 
-def process_batch(vuln_ids: list[str],
-                  dry_run: bool = False,
-                  max_workers: int = 10) -> tuple[int, list[str]]:
+def process_batch(
+    vuln_ids: list[str],
+    dry_run: bool = False,
+    max_workers: int = 10,
+    git_working_dir: Optional[str] = None) -> tuple[int, list[str]]:
   """Process a batch of vulnerabilities."""
   if not vuln_ids:
     return 0, []
@@ -158,7 +166,8 @@ def process_batch(vuln_ids: list[str],
     return 0, []
 
   # Batch signature generation
-  batch_results = _generate_vanir_signatures_batch(vulnerability_pbs_to_process)
+  batch_results = _generate_vanir_signatures_batch(
+      vulnerability_pbs_to_process, git_working_dir=git_working_dir)
 
   # Collect all vulnerabilities to update in GCS/Datastore.
   all_enriched_pbs = []
@@ -279,13 +288,18 @@ def main():
 
   # Note that total threads spawned will be max_workers * max_workers (one pool
   # for batches, one pool within each batch for GCS fetches).
-  with futures.ThreadPoolExecutor(max_workers=args.max_workers) as executor:
+  with tempfile.TemporaryDirectory() as shared_temp_dir:
+    with futures.ThreadPoolExecutor(max_workers=args.max_workers) as executor:
 
-    def process_with_context(batch):
-      with ndb.Client().context():
-        return process_batch(batch, args.dry_run, args.max_workers)
+      def process_with_context(batch):
+        with ndb.Client().context():
+          return process_batch(
+              batch,
+              args.dry_run,
+              args.max_workers,
+              git_working_dir=shared_temp_dir)
 
-    future_to_batch = {}
+      future_to_batch = {}
     current_batch = []
 
     logging.info('Streaming vulnerabilities for processing.')
