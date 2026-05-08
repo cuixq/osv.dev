@@ -33,7 +33,10 @@ from .redhat import RPM
 from .root import Root
 from .rubygems import RubyGems
 from .semver_ecosystem_helper import SemverEcosystem, SemverLike
+from .tuxcare import TuxCareEcosystem
 from .ubuntu import Ubuntu
+
+_TUXCARE = 'TuxCare'
 
 _ecosystems = {
     'AlmaLinux': RPM,
@@ -72,6 +75,7 @@ _ecosystems = {
     'RubyGems': RubyGems,
     'SUSE': RPM,
     'SwiftURL': SemverEcosystem,
+    'TuxCare': TuxCareEcosystem,
     'Ubuntu': Ubuntu,
     'VSCode': SemverLike,
     'Wolfi': APK,
@@ -86,7 +90,6 @@ _ecosystems = {
     'Linux': None,
     'OSS-Fuzz': None,
     'Photon OS': None,
-    'TuxCare': None,
 }
 
 
@@ -98,7 +101,11 @@ def is_semver(ecosystem: str) -> bool:
 def is_known(ecosystem: str) -> bool:
   """Returns whether an ecosystem is known to OSV
   (even if ordering is not supported)."""
-  name, _, _ = ecosystem.partition(':')
+  name, _, suffix = ecosystem.partition(':')
+  if name == _TUXCARE:
+    if not TuxCareEcosystem.is_valid_suffix(suffix):
+      return False
+    return is_known(suffix)
   return name in _ecosystems
 
 
@@ -133,10 +140,14 @@ _OSV_TO_DEPS_ECOSYSTEMS_MAP = {
 
 def get(name: str) -> OrderedEcosystem | EnumerableEcosystem | None:
   """Get ecosystem helpers for a given ecosystem."""
+  if not is_known(name):
+    return None
   name, _, suffix = name.partition(':')
   ecosys = _ecosystems.get(name)
   if ecosys is None:
     return None
+  if ecosys is TuxCareEcosystem:
+    return TuxCareEcosystem(suffix, inner=get(suffix))
   return ecosys(suffix)
 
 
