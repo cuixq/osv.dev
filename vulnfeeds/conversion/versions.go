@@ -26,10 +26,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/knqyf263/go-cpe/naming"
-
 	"github.com/google/osv/vulnfeeds/git"
 	"github.com/google/osv/vulnfeeds/models"
+	"github.com/knqyf263/go-cpe/naming"
 )
 
 // References with these tags have been found to contain completely unrelated
@@ -131,6 +130,24 @@ func repoGitWeb(parsedURL *url.URL) (string, error) {
 
 // Returns the base repository URL for supported repository hosts.
 func Repo(u string) (string, error) {
+	r, err := repo(u)
+	if err != nil {
+		return "", err
+	}
+	parsedURL, err := url.Parse(r)
+	if err == nil && isCaseInsensitiveHost(parsedURL.Hostname()) {
+		return strings.ToLower(r), nil
+	}
+
+	return r, nil
+}
+
+func isCaseInsensitiveHost(host string) bool {
+	host = strings.ToLower(host)
+	return host == "github.com" || host == "bitbucket.org" || strings.Contains(host, "gitlab")
+}
+
+func repo(u string) (string, error) {
 	var supportedHosts = []string{
 		"bitbucket.org",
 		"github.com",
